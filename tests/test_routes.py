@@ -9,7 +9,7 @@ import os
 import logging
 from unittest import TestCase
 from tests.factories import AccountFactory
-from service.common import status  # HTTP Status Codes
+from service.common import error_handlers, status  # HTTP Status Codes
 from service.models import db, Account, init_db
 from service.routes import app
 
@@ -86,6 +86,32 @@ class TestAccountService(TestCase):
         data = resp.get_json()
         self.assertEqual(data["status"], "OK")
 
+    def test_security_headers(self):
+        """It should include Talisman security headers"""
+        response = self.client.get("/")
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response.headers["X-Frame-Options"], "SAMEORIGIN")
+
+    def test_cors_allowed_origin(self):
+        """It should allow requests from an approved browser origin"""
+        response = self.client.options(
+            BASE_URL,
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.headers["Access-Control-Allow-Origin"],
+            "http://localhost:3000",
+        )
+
+    def test_cors_rejects_unknown_origin(self):
+        """It should not allow requests from an unapproved browser origin"""
+        response = self.client.get(BASE_URL, headers={"Origin": "https://evil.test"})
+        self.assertNotIn("Access-Control-Allow-Origin", response.headers)
+
     def test_create_account(self):
         """It should Create a new Account"""
         account = AccountFactory()
@@ -123,4 +149,76 @@ class TestAccountService(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 
-    # ADD YOUR TEST CASES HERE ...
+    def test_list_accounts(self):
+        """It should List all Accounts"""
+        self._create_accounts(5)
+        response = self.client.get(BASE_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.get_json()), 5)
+
+    def test_get_account(self):
+        """It should Read a single Account"""
+        account = self._create_accounts(1)[0]
+        response = self.client.get(f"{BASE_URL}/{account.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get_json()["name"], account.name)
+
+    def test_get_account_not_found(self):
+        """It should not Read an Account that is not found"""
+        response = self.client.get(f"{BASE_URL}/0")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_account(self):
+        """It should Update an existing Account"""
+        account = self._create_accounts(1)[0]
+        updated_account = account.serialize()
+        updated_account["name"] = "Something Known"
+        response = self.client.put(
+            f"{BASE_URL}/{account.id}", json=updated_account
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get_json()["name"], "Something Known")
+
+    def test_update_account_not_found(self):
+        """It should not Update an Account that is not found"""
+        account = AccountFactory()
+        response = self.client.put(f"{BASE_URL}/0", json=account.serialize())
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_account_wrong_media_type(self):
+        """It should not Update an Account with the wrong media type"""
+        account = self._create_accounts(1)[0]
+        response = self.client.put(
+            f"{BASE_URL}/{account.id}",
+            data="not json",
+            content_type="text/plain",
+        )
+        self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+
+    def test_delete_account(self):
+        """It should Delete an Account"""
+        account = self._create_accounts(1)[0]
+        response = self.client.delete(f"{BASE_URL}/{account.id}")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(self.client.get(f"{BASE_URL}/{account.id}").status_code,
+                         status.HTTP_404_NOT_FOUND)
+
+    def test_delete_account_not_found(self):
+        """It should return no content when deleting a missing Account"""
+        response = self.client.delete(f"{BASE_URL}/0")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_method_not_allowed(self):
+        """It should not allow an illegal method call"""
+        response = self.client.delete(BASE_URL)
+        self.assertEqual(
+            response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def test_internal_server_error(self):
+        """It should return a JSON response for an internal server error"""
+        response, status_code = error_handlers.internal_server_error(
+            Exception("unexpected error")
+        )
+        self.assertEqual(status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.get_json()["error"], "Internal Server Error")

@@ -5,6 +5,9 @@ Thumbs.db
 # Nose
 .noseids
 
+# Local lab instructions, results, and screenshots (never commit)
+10_docs/
+
 # Vagrant
 .vagrant
 

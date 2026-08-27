@@ -1,5 +1,5 @@
 ---
-name: ISSUE_TEMPLATE
+name: user-story
 about: User Story Template
 title: "[NEW ISSUES]"
 labels: ''

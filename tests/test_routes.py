@@ -9,7 +9,7 @@ import os
 import logging
 from unittest import TestCase
 from tests.factories import AccountFactory
-from service.common import status  # HTTP Status Codes
+from service.common import error_handlers, status  # HTTP Status Codes
 from service.models import db, Account, init_db
 from service.routes import app
 
@@ -185,4 +185,14 @@ class TestAccountService(TestCase):
     def test_method_not_allowed(self):
         """It should not allow an illegal method call"""
         response = self.client.delete(BASE_URL)
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(
+            response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def test_internal_server_error(self):
+        """It should return a JSON response for an internal server error"""
+        response, status_code = error_handlers.internal_server_error(
+            Exception("unexpected error")
+        )
+        self.assertEqual(status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.get_json()["error"], "Internal Server Error")

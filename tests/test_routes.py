@@ -86,6 +86,32 @@ class TestAccountService(TestCase):
         data = resp.get_json()
         self.assertEqual(data["status"], "OK")
 
+    def test_security_headers(self):
+        """It should include Talisman security headers"""
+        response = self.client.get("/")
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response.headers["X-Frame-Options"], "SAMEORIGIN")
+
+    def test_cors_allowed_origin(self):
+        """It should allow requests from an approved browser origin"""
+        response = self.client.options(
+            BASE_URL,
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.headers["Access-Control-Allow-Origin"],
+            "http://localhost:3000",
+        )
+
+    def test_cors_rejects_unknown_origin(self):
+        """It should not allow requests from an unapproved browser origin"""
+        response = self.client.get(BASE_URL, headers={"Origin": "https://evil.test"})
+        self.assertNotIn("Access-Control-Allow-Origin", response.headers)
+
     def test_create_account(self):
         """It should Create a new Account"""
         account = AccountFactory()

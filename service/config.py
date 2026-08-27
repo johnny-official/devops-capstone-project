@@ -21,3 +21,7 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 # Secret for session management
 SECRET_KEY = os.getenv("SECRET_KEY", "s3cr3t-key-shhhh")
+
+# Browser origins allowed to call the API. Configure deployment-specific values
+# through CORS_ORIGINS as a comma-separated list.
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")

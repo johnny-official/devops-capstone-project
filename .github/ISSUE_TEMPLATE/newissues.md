@@ -1,9 +1,10 @@
 ---
-name: User Story Template
+name: NewIssues
 about: User Story
-title: ''
+title: "[NEW ISSUES]"
 labels: ''
-assignees: ''
+assignees: johnny-official
+type: Feature
 
 ---
 

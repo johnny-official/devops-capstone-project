@@ -1,10 +1,10 @@
 ---
-name: NewIssues
-about: User Story
+name: ISSUE_TEMPLATE
+about: User Story Template
 title: "[NEW ISSUES]"
 labels: ''
 assignees: johnny-official
-type: Feature
+type: Task
 
 ---
 
